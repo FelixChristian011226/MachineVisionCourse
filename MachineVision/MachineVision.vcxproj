@@ -135,7 +135,7 @@
     <ResourceCompile Include="MachineVision.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="test.cpp" />
+    <ClCompile Include="ImageProcess.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Resources\input1024.jpg" />

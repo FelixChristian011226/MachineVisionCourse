@@ -23,7 +23,7 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="test.cpp">
+    <ClCompile Include="ImageProcess.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
   </ItemGroup>
