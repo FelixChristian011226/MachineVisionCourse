@@ -1,161 +1,171 @@
-#include<iostream>
-#include<opencv2/opencv.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/calib3d.hpp>
+#include <iostream>
+#include <ctime>  
 
-using namespace std;
 using namespace cv;
+using namespace std;
 
+Mat computeDisparityNCC(const Mat& imgL, const Mat& imgR, int numDisparities = 64, int blockSize = 5) {
+    Mat disparity = Mat::zeros(imgL.size(), CV_32F);
 
+    int halfBlockSize = blockSize / 2;
+    for (int y = halfBlockSize; y < imgL.rows - halfBlockSize; y++) {
+        for (int x = halfBlockSize; x < imgL.cols - halfBlockSize; x++) {
+            float maxNCC = -1.0f;
+            int bestDisparity = 0;
 
-class SAD
-{
-private:
-	int winSize;//卷积核尺寸
-	int DSR;//视差搜索范围
-public:
-	SAD() :winSize(7), DSR(30) {}
-	SAD(int _winSize, int _DSR) :winSize(_winSize), DSR(_DSR) {}
-	Mat computerSAD(Mat& L, Mat& R);//计算SAD
-};
+            for (int d = 0; d < numDisparities; d++) {
+                if (x - d < halfBlockSize) break;
 
-Mat SAD::computerSAD(Mat& L, Mat& R)
-{
-	int Height = L.rows;
-	int Width = L.cols;
-	Mat Kernel_L(Size(winSize, winSize), CV_8U, Scalar::all(0));
-	//CV_8U:0~255的值，大多数图像/视频的格式，该段设置全0矩阵
-	Mat Kernel_R(Size(winSize, winSize), CV_8U, Scalar::all(0));
-	Mat Disparity(Height, Width, CV_8U, Scalar(0));
+                Rect leftRect(x - halfBlockSize, y - halfBlockSize, blockSize, blockSize);
+                Rect rightRect(x - d - halfBlockSize, y - halfBlockSize, blockSize, blockSize);
 
+                Mat blockL = imgL(leftRect);
+                Mat blockR = imgR(rightRect);
 
-	for (int i = 0; i < Width - winSize; ++i) {
-		for (int j = 0; j < Height - winSize; ++j) {
-			Kernel_L = L(Rect(i, j, winSize, winSize));//L为做图像，Kernel为这个范围内的左图
-			Mat MM(1, DSR, CV_32F, Scalar(0));//定义匹配范围
+                // 计算每个块的均值
+                float meanL = mean(blockL)[0];
+                float meanR = mean(blockR)[0];
 
-			for (int k = 0; k < DSR; ++k) {
-				int x = i - k;
-				if (x >= 0) {
-					Kernel_R = R(Rect(x, j, winSize, winSize));
-					Mat Dif;
-					absdiff(Kernel_L, Kernel_R, Dif);
-					Scalar ADD = sum(Dif);
-					float a = ADD[0];
-					MM.at<float>(k) = a;
-				}
-				Point minLoc;
-				minMaxLoc(MM, NULL, NULL, &minLoc, NULL);
+                // 计算归一化相关性
+                Mat nccL = blockL - meanL;
+                Mat nccR = blockR - meanR;
 
-				int loc = minLoc.x;
-				Disparity.at<char>(j, i) = loc * 16;
-			}
-			double rate = double(i) / (Width);
-			cout << "已完成" << setprecision(2) << rate * 100 << "%" << endl;
-		}
-	}
-	return Disparity;
+                float numerator = sum(nccL.mul(nccR))[0];
+                float denominator = sqrt(sum(nccL.mul(nccL))[0] * sum(nccR.mul(nccR))[0]);
+
+                float ncc = numerator / (denominator + 1e-10); // 防止除零
+
+                if (ncc > maxNCC) {
+                    maxNCC = ncc;
+                    bestDisparity = d;
+                }
+            }
+            disparity.at<float>(y, x) = (float)bestDisparity;
+        }
+    }
+
+    Mat dispNCCVis;
+    normalize(disparity, dispNCCVis, 0, 255, NORM_MINMAX, CV_8U);
+
+    return dispNCCVis;
 }
 
-class SGBM
-{
-private:
-	enum mode_view { LEFT, RIGHT };
-	mode_view view;	//输出左视差图or右视差图
+Mat computeDisparitySAD(const Mat& imgL, const Mat& imgR, int numDisparities = 64, int blockSize = 5) {
+    Mat disparity = Mat::zeros(imgL.size(), CV_32F);
 
-public:
-	SGBM() {};
-	SGBM(mode_view _mode_view) :view(_mode_view) {};
-	~SGBM() {};
-	Mat computersgbm(Mat& L, Mat& R);	//计算SGBM
-};
+    int halfBlockSize = blockSize / 2;
+    for (int y = halfBlockSize; y < imgL.rows - halfBlockSize; y++) {
+        for (int x = halfBlockSize; x < imgL.cols - halfBlockSize; x++) {
+            float minSAD = FLT_MAX;
+            int bestDisparity = 0;
 
-Mat SGBM::computersgbm(Mat& L, Mat& R)
-/*SGBM_matching SGBM算法
-*@param Mat &left_image :左图像
-*@param Mat &right_image:右图像
-*/
-{
-	Mat disp;
+            for (int d = 0; d < numDisparities; d++) {
+                if (x - d < halfBlockSize) break;
 
-	int numberOfDisparities = ((L.size().width / 8) + 15) & -16;
-	Ptr<StereoSGBM> sgbm = StereoSGBM::create(0, 16, 3);
-	sgbm->setPreFilterCap(32);
+                Rect leftRect(x - halfBlockSize, y - halfBlockSize, blockSize, blockSize);
+                Rect rightRect(x - d - halfBlockSize, y - halfBlockSize, blockSize, blockSize);
 
-	int SADWindowSize = 5;
-	int sgbmWinSize = SADWindowSize > 0 ? SADWindowSize : 3;
-	sgbm->setBlockSize(sgbmWinSize);
-	int cn = L.channels();
+                Mat blockL = imgL(leftRect);
+                Mat blockR = imgR(rightRect);
 
-	sgbm->setP1(8 * cn * sgbmWinSize * sgbmWinSize);
-	sgbm->setP2(32 * cn * sgbmWinSize * sgbmWinSize);
-	sgbm->setMinDisparity(0);
-	sgbm->setNumDisparities(numberOfDisparities);
-	sgbm->setUniquenessRatio(10);
-	sgbm->setSpeckleWindowSize(100);
-	sgbm->setSpeckleRange(32);
-	sgbm->setDisp12MaxDiff(1);
+                float sad = sum(abs(blockL - blockR))[0];
 
+                if (sad < minSAD) {
+                    minSAD = sad;
+                    bestDisparity = d;
+                }
+            }
+            disparity.at<float>(y, x) = (float)bestDisparity;
+        }
+    }
 
-	Mat left_gray, right_gray;
-	cvtColor(L, left_gray, COLOR_RGB2GRAY);
-	cvtColor(R, right_gray, COLOR_RGB2GRAY);
+    Mat dispSADVis;
+    normalize(disparity, dispSADVis, 0, 255, NORM_MINMAX, CV_8U);
 
-	view = LEFT;
-	if (view == LEFT)	//计算左视差图
-	{
-		sgbm->compute(left_gray, right_gray, disp);
-
-		disp.convertTo(disp, CV_32F, 1.0 / 16);			//除以16得到真实视差值
-
-		Mat disp8U = Mat(disp.rows, disp.cols, CV_8UC1);
-		normalize(disp, disp8U, 0, 255, NORM_MINMAX, CV_8UC1);
-		imwrite("results/SGBM.jpg", disp8U);
-
-		return disp8U;
-	}
-	else if (view == RIGHT)	//计算右视差图
-	{
-		sgbm->setMinDisparity(-numberOfDisparities);
-		sgbm->setNumDisparities(numberOfDisparities);
-		sgbm->compute(left_gray, right_gray, disp);
-
-		disp.convertTo(disp, CV_32F, 1.0 / 16);			//除以16得到真实视差值
-
-		Mat disp8U = Mat(disp.rows, disp.cols, CV_8UC1);
-		normalize(disp, disp8U, 0, 255, NORM_MINMAX, CV_8UC1);
-		imwrite("results/SGBM.jpg", disp8U);
-
-		return disp8U;
-	}
-	else
-	{
-		return Mat();
-	}
+    return dispSADVis;
 }
 
+Mat computeDisparityBM(const Mat& imgL, const Mat& imgR, int numDisparities = 16 * 5, int blockSize = 21) {
+    Ptr<StereoBM> stereoBM = StereoBM::create();
+    stereoBM->setNumDisparities(numDisparities);
+    stereoBM->setBlockSize(blockSize);
 
-int main()
-{
-	Mat left = imread("./tsukuba/tsukuba_l.png");
-	Mat right = imread("./tsukuba/tsukuba_r.png");
-	//-------图像显示-----------
-	namedWindow("leftimag");
-	imshow("leftimag", left);
+    Mat disparityBM;
+    stereoBM->compute(imgL, imgR, disparityBM);
 
-	namedWindow("rightimag");
-	imshow("rightimag", right);
-	//--------由SAD求取视差图-----
-	Mat Disparity;
+    Mat dispBMVis;
+    normalize(disparityBM, dispBMVis, 0, 255, NORM_MINMAX, CV_8U);
 
-	SGBM mySGBM;
-	Disparity = mySGBM.computersgbm(left, right);
-	/*SAD mySad(7, 30);
-	Disparity = mySad.computerSAD(left, right);*/
+    return dispBMVis;
+}
+
+Mat computeDisparitySGBM(const Mat& imgL, const Mat& imgR, int numDisparities = 16 * 5, int blockSize = 5) {
+    Ptr<StereoSGBM> stereoSGBM = StereoSGBM::create();
+    stereoSGBM->setMinDisparity(0);
+    stereoSGBM->setNumDisparities(numDisparities);
+    stereoSGBM->setBlockSize(blockSize);
+    stereoSGBM->setP1(8 * 1 * blockSize * blockSize);
+    stereoSGBM->setP2(32 * 1 * blockSize * blockSize);
+    stereoSGBM->setMode(StereoSGBM::MODE_SGBM);
+
+    Mat disparitySGBM;
+    stereoSGBM->compute(imgL, imgR, disparitySGBM);
+
+    Mat dispSGBMVis;
+    normalize(disparitySGBM, dispSGBMVis, 0, 255, NORM_MINMAX, CV_8U);
+
+    return dispSGBMVis;
+}
+
+int main() {
+    Mat imgL = imread("./tsukuba/tsukuba_l.png", IMREAD_GRAYSCALE);
+    Mat imgR = imread("./tsukuba/tsukuba_r.png", IMREAD_GRAYSCALE);
+
+    if (imgL.empty() || imgR.empty()) {
+        cout << "图像读入错误!" << endl;
+        return -1;
+    }
+
+    clock_t start, end;
+    double time_NCC, time_SAD, time_BM, time_SGBM;
+
+    start = clock();
+    Mat disparityNCC = computeDisparityNCC(imgL, imgR);
+    end = clock();
+    time_NCC = static_cast<double>(end - start) / CLOCKS_PER_SEC;
+    cout << "Time of NCC: " << time_NCC << endl;
+
+    start = clock();
+    Mat disparitySAD = computeDisparitySAD(imgL, imgR);
+    end = clock();
+    time_SAD = static_cast<double>(end - start) / CLOCKS_PER_SEC;
+    cout << "Time of SAD: " << time_SAD << endl;
+
+    start = clock();
+    Mat disparityBM = computeDisparityBM(imgL, imgR);
+    end = clock();
+    time_BM = static_cast<double>(end - start) / CLOCKS_PER_SEC;
+    cout << "Time of BM: " << time_BM << endl;
+
+    start = clock();
+    Mat disparitySGBM = computeDisparitySGBM(imgL, imgR);
+    end = clock();
+    time_SGBM = static_cast<double>(end - start) / CLOCKS_PER_SEC;
+    cout << "Time of SGBM: " << time_SGBM << endl;
+
+    imshow("Disparity - NCC", disparityNCC);
+    imshow("Disparity - SAD", disparitySAD);
+    imshow("Disparity - StereoBM", disparityBM);
+    imshow("Disparity - StereoSGBM", disparitySGBM);
+    waitKey(0);
+
+	imwrite("Outputs\\ParallaxEstimate\\NCC.png", disparityNCC);
+	imwrite("Outputs\\ParallaxEstimate\\SAD.png", disparitySAD);
+	imwrite("Outputs\\ParallaxEstimate\\StereoBM.png", disparityBM);
+	imwrite("Outputs\\ParallaxEstimate\\StereoSGBM.png", disparitySGBM);
 
 
-	//-------结果显示------
-	namedWindow("Disparity");
-	imshow("Disparity", Disparity);
-	//-------收尾------
-	waitKey(0);
-	return 0;
+    return 0;
 }

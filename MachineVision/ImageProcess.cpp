@@ -240,7 +240,7 @@ int main() {
 	//更改该参数切换模式，如果是true则分开处理去噪和去模糊，否则将先降质再恢复
 	bool seperated = true;
 
-    cv::Mat originalImage = cv::imread("Resources\\input512.jpg", IMREAD_GRAYSCALE);
+    cv::Mat originalImage = cv::imread("Resources\\ImageProcess\\input512.jpg", IMREAD_GRAYSCALE);
 	cv::Mat noisedImage = originalImage.clone();
 	cv::Mat denoisedImage;
 	cv::Mat blurredImage = originalImage.clone();
@@ -253,18 +253,18 @@ int main() {
     {
         // 噪声添加
         addGaussianNoise(noisedImage, 0, 25);
-        cv::imwrite("Outputs\\noised_image.jpg", noisedImage);
+        cv::imwrite("Outputs\\ImageProcess\\noised_image.jpg", noisedImage);
 
         // 噪声去除
         nonlocalMeansFilter(noisedImage, denoisedImage, 7, 21, 10, 0.0);  // 非局部均值滤波去噪
-        cv::imwrite("Outputs\\denoised_image.jpg", denoisedImage);
+        cv::imwrite("Outputs\\ImageProcess\\denoised_image.jpg", denoisedImage);
 
         // 运动模糊
         //gaussianBlur(degradedImage, 5);
         int blurLength = 50;    // 模糊长度
         double blurAngle = -30;  // 模糊角度
         motionBlur(blurredImage, blurLength, blurAngle);
-        cv::imwrite("Outputs\\blurred_image.jpg", blurredImage);
+        cv::imwrite("Outputs\\ImageProcess\\blurred_image.jpg", blurredImage);
         cv::Mat blurredImage2 = blurredImage.clone();
 
         // 去模糊
@@ -280,7 +280,7 @@ int main() {
         filter2DFreq(blurredImage, deblurredImage, Hw);
         deblurredImage.convertTo(deblurredImage, CV_8U);
         normalize(deblurredImage, deblurredImage, 0, 255, NORM_MINMAX);
-        cv::imwrite("Outputs\\deblurred_image.jpg", deblurredImage);
+        cv::imwrite("Outputs\\ImageProcess\\deblurred_image.jpg", deblurredImage);
         cv::imshow("Original Image", originalImage);
         cv::imshow("Noised Image", noisedImage);
         cv::imshow("Denoised Image", denoisedImage);
@@ -296,7 +296,7 @@ int main() {
         motionBlur(degradedImage, blurLength, blurAngle);
 
         addGaussianNoise(degradedImage, 0, 25);
-        cv::imwrite("Outputs\\degraded_image.jpg", degradedImage);
+        cv::imwrite("Outputs\\ImageProcess\\degraded_image.jpg", degradedImage);
 
         // 恢复
         nonlocalMeansFilter(degradedImage, blurredImage, 7, 21, 10, 0.0);
@@ -313,7 +313,7 @@ int main() {
         filter2DFreq(blurredImage, restoredImage, Hw);
         restoredImage.convertTo(restoredImage, CV_8U);
         normalize(restoredImage, restoredImage, 0, 255, NORM_MINMAX);
-        cv::imwrite("Outputs\\restored_image.jpg", restoredImage);
+        cv::imwrite("Outputs\\ImageProcess\\restored_image.jpg", restoredImage);
 
         // 显示结果
         cv::imshow("Original Image", originalImage);
