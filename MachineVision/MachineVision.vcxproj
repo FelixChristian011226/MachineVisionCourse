@@ -135,13 +135,13 @@
     <ResourceCompile Include="MachineVision.rc" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ImageProcess.cpp" />
-  </ItemGroup>
-  <ItemGroup>
     <Image Include="Resources\input1024.jpg" />
     <Image Include="Resources\input512.jpg" />
-    <Image Include="Resources\input512.png" />
-    <Image Include="Resources\input_colorful.jpg" />
+    <Image Include="tsukuba\tsukuba_l.png" />
+    <Image Include="tsukuba\tsukuba_r.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ParallaxEstimate.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

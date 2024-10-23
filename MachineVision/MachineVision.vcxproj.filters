@@ -23,22 +23,22 @@
     </ResourceCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="ImageProcess.cpp">
-      <Filter>源文件</Filter>
-    </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="Resources\input_colorful.jpg">
-      <Filter>资源文件</Filter>
-    </Image>
     <Image Include="Resources\input512.jpg">
-      <Filter>资源文件</Filter>
-    </Image>
-    <Image Include="Resources\input512.png">
       <Filter>资源文件</Filter>
     </Image>
     <Image Include="Resources\input1024.jpg">
       <Filter>资源文件</Filter>
     </Image>
+    <Image Include="tsukuba\tsukuba_l.png">
+      <Filter>资源文件</Filter>
+    </Image>
+    <Image Include="tsukuba\tsukuba_r.png">
+      <Filter>资源文件</Filter>
+    </Image>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="ParallaxEstimate.cpp">
+      <Filter>源文件</Filter>
+    </ClCompile>
   </ItemGroup>
 </Project>
