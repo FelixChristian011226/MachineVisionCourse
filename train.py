@@ -12,6 +12,8 @@ from torch.autograd import Variable
 
 from torchvision import transforms
 
+from torch.utils.tensorboard import SummaryWriter
+
 from model.utils.cli_helper import parse_args
 from model.eval_function import Eval_Score
 
@@ -26,6 +28,12 @@ def train():
     save_path = args.save
     if not os.path.isdir(save_path):
         os.makedirs(save_path)
+
+    log_path = args.log
+    if not os.path.isdir(log_path):
+        os.makedirs(log_path)
+
+    writer = SummaryWriter(log_dir=log_path)
 
     train_dataset_file = os.path.join(args.dataset, 'train.txt')
     val_dataset_file = os.path.join(args.dataset, 'val.txt')
@@ -70,6 +78,10 @@ def train():
     print(f"{args.epochs} epochs {len(train_dataset)} training samples\n")
 
     model, log = train_model(model, optimizer, scheduler=None, dataloaders=dataloaders, dataset_sizes=dataset_sizes, device=DEVICE, loss_type=args.loss_type, num_epochs=args.epochs)
+    for epoch, train_loss, val_loss in zip(log['epoch'], log['training_loss'], log['val_loss']):
+        writer.add_scalar('Loss/Train', train_loss, epoch)
+        writer.add_scalar('Loss/Val', val_loss, epoch)
+    writer.close() 
     df=pd.DataFrame({'epoch':[],'training_loss':[],'val_loss':[]})
     df['epoch'] = log['epoch']
     df['training_loss'] = log['training_loss']

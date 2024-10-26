@@ -2,6 +2,7 @@ import argparse
 
 def parse_args():
     parser = argparse.ArgumentParser()
+    parser.add_argument("--log", help="Directory to save log", default="./log_dir")
     parser.add_argument("--dataset", help="Dataset path")
     parser.add_argument("--model_type", help="Model type", default='ENet')
     parser.add_argument("--loss_type", help="Loss type", default='FocalLoss')
