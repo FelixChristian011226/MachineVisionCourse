@@ -8,12 +8,16 @@ import torch.optim as optim
 import torchvision
 from torchvision.models.detection import fasterrcnn_resnet50_fpn
 
-
+from torch.utils.tensorboard import SummaryWriter
 
 
 def main():
+
+    writer = SummaryWriter(log_dir='log_dir/old_method')
+    
     # 构造数据加载器
-    dataset = CityscapesDataset('./data/cityscapes',split="train")
+    # dataset = CityscapesDataset('./data/cityscapes',split="train")
+    dataset = CityscapesDataset('~/autodl-tmp/dataset/data/cityscapes', split="train")
     data_loader = torch.utils.data.DataLoader(dataset, batch_size=4, shuffle=True, num_workers=4, collate_fn=lambda x: tuple(zip(*x)))
 
 
@@ -35,11 +39,11 @@ def main():
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 
     # 开始训练
-    num_epochs = 10
+    num_epochs = 1
     for epoch in range(num_epochs):
         model.train()
         epoch_loss = 0
-        for images, targets in tqdm(data_loader):
+        for i, (images, targets) in enumerate(tqdm(data_loader)):
             images = list(image.to(device) for image in images)
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
@@ -53,6 +57,10 @@ def main():
             losses.backward()
             optimizer.step()
 
+            # 记录数据到Tensorboard
+            writer.add_scalar('Loss/train', losses.item(), epoch * len(data_loader) + i)
+            writer.add_scalar('Learning Rate', optimizer.param_groups[0]['lr'], epoch)
+
         lr_scheduler.step()
 
     print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss}")
@@ -60,6 +68,7 @@ def main():
     # 训练结束后保存模型
     torch.save(model.state_dict(), 'fasterrcnn_cityscapes.pth')
 
+    writer.close()
 
 if __name__ == '__main__':
     main()
