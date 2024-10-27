@@ -39,11 +39,11 @@ def main():
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.1)
 
     # 开始训练
-    num_epochs = 1
+    num_epochs = 10
     for epoch in range(num_epochs):
         model.train()
         epoch_loss = 0
-        for i, (images, targets) in enumerate(tqdm(data_loader)):
+        for images, targets in tqdm(data_loader):
             images = list(image.to(device) for image in images)
             targets = [{k: v.to(device) for k, v in t.items()} for t in targets]
 
@@ -57,9 +57,9 @@ def main():
             losses.backward()
             optimizer.step()
 
-            # 记录数据到Tensorboard
-            writer.add_scalar('Loss/train', losses.item(), epoch * len(data_loader) + i)
-            writer.add_scalar('Learning Rate', optimizer.param_groups[0]['lr'], epoch)
+        # 记录数据到Tensorboard
+        writer.add_scalar('Loss/train', epoch_loss, epoch)
+        writer.add_scalar('Learning Rate', optimizer.param_groups[0]['lr'], epoch)
 
         lr_scheduler.step()
 
