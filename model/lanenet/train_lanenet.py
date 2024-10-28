@@ -43,6 +43,10 @@ def train_model(model, optimizer, scheduler, dataloaders, dataset_sizes, device,
 
     best_model_wts = copy.deepcopy(model.state_dict())
 
+    # Early Stopping变量
+    early_stopping_counter = 0
+    patience = 3
+
     for epoch in range(num_epochs):
         training_log['epoch'].append(epoch)
         print('Epoch {}/{}'.format(epoch, num_epochs - 1))
@@ -101,6 +105,14 @@ def train_model(model, optimizer, scheduler, dataloaders, dataset_sizes, device,
                 if epoch_loss < best_loss:
                     best_loss = epoch_loss
                     best_model_wts = copy.deepcopy(model.state_dict())
+                    early_stopping_counter = 0  # 重置计数器
+                else:
+                    early_stopping_counter += 1  # 增加计数器
+
+        # 检查是否满足Early Stopping条件
+        if early_stopping_counter >= patience:
+            print("Early stopping triggered.")
+            break
 
         print()
 

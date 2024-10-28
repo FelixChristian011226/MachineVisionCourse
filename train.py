@@ -74,7 +74,7 @@ def train():
     model = LaneNet(arch=args.model_type)
     model.to(DEVICE)
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
+    optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=1e-5)
     print(f"{args.epochs} epochs {len(train_dataset)} training samples\n")
 
     model, log = train_model(model, optimizer, scheduler=None, dataloaders=dataloaders, dataset_sizes=dataset_sizes, device=DEVICE, loss_type=args.loss_type, num_epochs=args.epochs)
