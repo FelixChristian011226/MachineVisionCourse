@@ -14,9 +14,9 @@ from torch.cuda.amp import GradScaler, autocast
 
 def main():
 
-    num_epochs = 10
+    num_epochs = 200
 
-    writer = SummaryWriter(log_dir='log_dir/new_method')
+    writer = SummaryWriter(log_dir='log_dir/new_method_200')
     scaler = GradScaler()
     
     # 构造数据加载器
@@ -72,7 +72,7 @@ def main():
     print(f"Epoch {epoch + 1}/{num_epochs}, Loss: {epoch_loss}")
 
     # 训练结束后保存模型
-    torch.save(model.state_dict(), 'fasterrcnn_cityscapes_new.pth')
+    torch.save(model.state_dict(), 'fasterrcnn_cityscapes_new_200.pth')
 
     writer.close()
 
