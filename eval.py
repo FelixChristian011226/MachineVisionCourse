@@ -9,69 +9,56 @@ import time
 
 def evaluate_model(model, dataloader, iou_threshold=0.5):
     """
-    评估 Faster R-CNN 模型在 Cityscapes 数据集上的表现，计算 AP, mAP, Precision, Recall, F1 Score 和 FPS。
+    评估 Faster R-CNN 模型在 Cityscapes 数据集上的表现，计算 AP, mAP, Precision 和 F1 Score。
 
     Args:
         model: 经过训练的 Faster R-CNN 模型
         dataloader: 测试数据集的 DataLoader
-        iou_threshold: 用于计算 Precision 和 Recall 的 IoU 阈值
+        iou_threshold: 用于计算 Precision 的 IoU 阈值
     
     Returns:
-        results: 包含 AP、mAP、Precision、Recall、F1 Score 和 FPS 的字典
+        results: 包含 mAP、Precision 和 F1 Score 的字典
     """
     model.eval()
-    aps, precisions, recalls, f1_scores = [], [], [], []
-    total_time = 0
+    aps, precisions, f1_scores = [], [], []
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     with torch.no_grad():
         for imgs, gts in tqdm(dataloader):
             imgs = list(img.to(device) for img in imgs)
             gt_boxes = [gt['boxes'].to(device) for gt in gts]
-            gt_labels = [gt['labels'].to(device) for gt in gts]
             
-            # 记录开始时间
-            start_time = time.time()
             preds = model(imgs)  # 推理
-            total_time += time.time() - start_time
 
-            for pred, gt_box, gt_label in zip(preds, gt_boxes, gt_labels):
+            for pred, gt_box in zip(preds, gt_boxes):
                 pred_boxes = pred['boxes']
                 pred_scores = pred['scores']
-                pred_labels = pred['labels']
                 
                 # 计算 IoU 并过滤预测框
                 iou_matrix = torchvision.ops.box_iou(pred_boxes, gt_box)
                 tp = (iou_matrix >= iou_threshold).any(dim=1).sum().item()
                 fp = len(pred_boxes) - tp
-                fn = len(gt_box) - tp
 
-                # 计算 Precision, Recall, F1 Score
+                # 计算 Precision 和 F1 Score
                 precision = tp / (tp + fp) if (tp + fp) > 0 else 0
-                recall = tp / (tp + fn) if (tp + fn) > 0 else 0
-                f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+                f1 = 2 * precision / (1 + precision) if precision > 0 else 0
 
                 precisions.append(precision)
-                recalls.append(recall)
                 f1_scores.append(f1)
                 
                 # 计算平均精度（AP）
-                ap = precision * recall
+                ap = precision
                 aps.append(ap)
 
-    # 计算 mAP 和 FPS
+    # 计算 mAP
     mAP = np.mean(aps)
     avg_precision = np.mean(precisions)
-    avg_recall = np.mean(recalls)
     avg_f1_score = np.mean(f1_scores)
-    fps = len(dataloader.dataset) / total_time
 
     results = {
         "mAP": mAP,
         "Precision": avg_precision,
-        "Recall": avg_recall,
-        "F1 Score": avg_f1_score,
-        "FPS": fps
+        "F1 Score": avg_f1_score
     }
     return results
 
